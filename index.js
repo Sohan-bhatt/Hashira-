@@ -1,127 +1,122 @@
-function convertToDecimal(val, base) {
-    let result = 0;
-    let power = 1;
-    
-    for (let i = val.length - 1; i >= 0; i--) {
-        let digit;
-        if (val[i] >= '0' && val[i] <= '9') {
-            digit = parseInt(val[i]);
-        } else {
-            digit = val[i].charCodeAt(0) - 'a'.charCodeAt(0) + 10;
+function baseToBigInt(valueStr, base) {
+    const digits = '0123456789abcdefghijklmnopqrstuvwxyz';
+    let result = 0n;
+    const baseBigInt = BigInt(base);
+
+    for (const char of valueStr) {
+        const digitValue = digits.indexOf(char.toLowerCase());
+
+        if (digitValue === -1 || BigInt(digitValue) >= baseBigInt) {
+            throw new Error(`Invalid digit '${char}' for base ${base}.`);
         }
-        result += digit * power;
-        power *= base;
+
+        result = result * baseBigInt + BigInt(digitValue);
     }
     return result;
 }
 
-function lagrangeInterpolation(points, x) {
-    let result = 0;
-    let n = points.length;
-    
-    for (let i = 0; i < n; i++) {
-        let term = points[i][1];
-        for (let j = 0; j < n; j++) {
-            if (i !== j) {
-                term = term * (x - points[j][0]) / (points[i][0] - points[j][0]);
+function findPolynomialCoefficients(jsonString) {
+    try {
+        const data = JSON.parse(jsonString);
+        const k = data.keys.k;
+        const degree = k - 1;
+
+        if (degree < 0) return { degree: -1, coefficients: [] };
+        if (degree === 0) return { degree: 0, coefficients: ["1"] };
+
+        const roots = [];
+        for (let i = 1; i <= degree; i++) {
+            const rootData = data[i.toString()];
+            if (!rootData) {
+                throw new Error(`Missing root data for key "${i}"`);
             }
+            const base = parseInt(rootData.base, 10);
+            const value = rootData.value;
+            roots.push(baseToBigInt(value, base));
         }
-        result += term;
+
+        let coeffs = [1n];
+
+        for (const root of roots) {
+            const currentDegree = coeffs.length - 1;
+            const newCoeffs = new Array(currentDegree + 2).fill(0n);
+
+            for (let i = 0; i < coeffs.length; i++) {
+                newCoeffs[i] = coeffs[i];
+            }
+
+            for (let i = 0; i < coeffs.length; i++) {
+                newCoeffs[i + 1] -= root * coeffs[i];
+            }
+
+            coeffs = newCoeffs;
+        }
+
+        const output = {
+            degree: degree,
+            coefficients: coeffs.map(c => c.toString())
+        };
+
+        return output;
+
+    } catch (error) {
+        console.error("An error occurred:", error.message);
+        return null;
     }
-    return result;
 }
 
-const testCase1 = {
-    "keys": {
-        "n": 4,
-        "k": 3
-    },
-    "1": {
-        "base": "10",
-        "value": "4"
-    },
-    "2": {
-        "base": "2",
-        "value": "111"
-    },
-    "3": {
-        "base": "10",
-        "value": "12"
-    },
-    "6": {
-        "base": "4",
-        "value": "213"
-    }
-};
+const testCaseJson = `{
+"keys": {
+    "n": 10,
+    "k": 7
+  },
+  "1": {
+    "base": "6",
+    "value": "13444211440455345511"
+  },
+  "2": {
+    "base": "15",
+    "value": "aed7015a346d635"
+  },
+  "3": {
+    "base": "15",
+    "value": "6aeeb69631c227c"
+  },
+  "4": {
+    "base": "16",
+    "value": "e1b5e05623d881f"
+  },
+  "5": {
+    "base": "8",
+    "value": "316034514573652620673"
+  },
+  "6": {
+    "base": "3",
+    "value": "2122212201122002221120200210011020220200"
+  },
+  "7": {
+    "base": "3",
+    "value": "20120221122211000100210021102001201112121"
+  },
+  "8": {
+    "base": "6",
+    "value": "20220554335330240002224253"
+  },
+  "9": {
+    "base": "12",
+    "value": "45153788322a1255483"
+  },
+  "10": {
+    "base": "7",
+    "value": "1101613130313526312514143"
+  }
+}`;
 
-const testCase2 = {
-    "keys": {
-        "n": 10,
-        "k": 7
-    },
-    "1": {
-        "base": "6",
-        "value": "13444211440455345511"
-    },
-    "2": {
-        "base": "15",
-        "value": "aed7015a346d635"
-    },
-    "3": {
-        "base": "15",
-        "value": "6aeeb69631c227c"
-    },
-    "4": {
-        "base": "16",
-        "value": "e1b5e05623d881f"
-    },
-    "5": {
-        "base": "8",
-        "value": "316034514573652620673"
-    },
-    "6": {
-        "base": "3",
-        "value": "2122212201122002221120200210011020220200"
-    },
-    "7": {
-        "base": "3",
-        "value": "20120221122211000100210021102001201112121"
-    },
-    "8": {
-        "base": "6",
-        "value": "20220554335330240002224253"
-    },
-    "9": {
-        "base": "12",
-        "value": "45153788322a1255483"
-    },
-    "10": {
-        "base": "7",
-        "value": "1101613130313526312514143"
-    }
-};
+const result = findPolynomialCoefficients(testCaseJson);
 
-function solve(data) {
-    let points = [];
-    let n = data.keys.n;
-    let k = data.keys.k;
-    
-    for (let key in data) {
-        if (key !== 'keys') {
-            let x = parseInt(key);
-            let base = parseInt(data[key].base);
-            let val = data[key].value;
-            let y = convertToDecimal(val, base);
-            points.push([x, y]);
-        }
-    }
-    
-    points.sort((a, b) => a[0] - b[0]);
-    let selectedPoints = points.slice(0, k);
-    
-    let constantTerm = lagrangeInterpolation(selectedPoints, 0);
-    return Math.round(constantTerm);
+if (result) {
+    console.log("--- Hashira Placements Assignment Output ---");
+    console.log(`\nPolynomial Degree (m): ${result.degree}`);
+    console.log("\nCoefficients (for x^6 down to the constant term):");
+    console.log(JSON.stringify(result.coefficients, null, 2));
 }
-
-console.log("Test Case 1 - Constant term:", solve(testCase1));
-console.log("Test Case 2 - Constant term:", solve(testCase2));
