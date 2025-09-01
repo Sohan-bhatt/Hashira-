@@ -1,4 +1,4 @@
-# Way to run
+# Way to run in terminal
 - ## node index.js
 
 ## Result::
